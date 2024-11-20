@@ -14,8 +14,8 @@ ros2 topic echo /joy
 header:
   stamp:
     sec: 1732128207
-    nanosec: 396487759
-  frame_id: joy
+   nanosec: 396487759
+ frame_id: joy
 axes:
 - -0.0
 - -0.0
