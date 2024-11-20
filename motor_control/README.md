@@ -10,8 +10,7 @@ ros2 run motor_control motor_control_node.py [or] ros2 run motor_control motor_c
 ros2 topic list -> /joy
 
 ros2 topic echo /joy
-
-[
+---
 header:
   stamp:
     sec: 1732128207
@@ -39,4 +38,3 @@ buttons:
 - 0
 - 0
 ---
-]
