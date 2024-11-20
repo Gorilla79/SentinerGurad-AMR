@@ -7,7 +7,8 @@ setup(
     version='0.0.0',
     packages=[package_name],
     py_modules=[
-        'motor_control.motor_control_node',
+        'motor_control.motor_control_node',  # Keyboard-controlled version
+        'motor_control.motor_control_joy',  # Joystick-controlled version
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -18,8 +19,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'motor_control_node = motor_control.motor_control_node:main',
+            'motor_control = motor_control.motor_control_node:main',  # Entry point for keyboard control
+            'motor_control_joy = motor_control.motor_control_joy:main',  # Entry point for joystick control
         ],
     },
 )
-
