@@ -8,7 +8,9 @@ ros2 run motor_control motor_control_node.py [or] ros2 run motor_control motor_c
 
 [joy controller check]
 ros2 topic list -> /joy
+
 ros2 topic echo /joy
+
 [
 header:
   stamp:
