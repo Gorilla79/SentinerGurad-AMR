@@ -47,12 +47,13 @@ class Motor:
         low_byte = rpm_val & 0xFF
         self.send_serial_checksum(True, 0x06, high_byte, low_byte)
 
+
 class MotorControlNode(Node):
     def __init__(self):
         super().__init__('motor_control_node')
 
-        # Default speeds
-        self.default_angular_speed = 0.3
+        # Default speed limits
+        self.default_angular_speed = 0.1
         self.default_linear_speed = 0.5
         self.angular_speed = self.default_angular_speed
         self.linear_speed = self.default_linear_speed
@@ -68,62 +69,55 @@ class MotorControlNode(Node):
             Joy,
             'joy',
             self.joy_callback,
-            10)
+            10
+        )
 
     def joy_callback(self, msg):
-        # Debug: Print the received joystick axes and button values
-        self.get_logger().info(f"Axes: {msg.axes}")
-        self.get_logger().info(f"Buttons: {msg.buttons}")
+        # Extract joystick values
+        left_joystick_lr = msg.axes[1]  # Left joystick left-right for angular speed adjustment
+        left_joystick_ud = msg.axes[0]  # Left joystick up-down for linear speed adjustment
+        right_joystick_lr = msg.axes[4]  # Right joystick left-right
+        right_joystick_ud = msg.axes[3]  # Right joystick up-down
 
-        # Extract axes values
-        left_joystick_lr = msg.axes[0]  # Left joystick left-right
-        left_joystick_ud = msg.axes[1]  # Left joystick up-down
-        lt_button = msg.axes[2]  # LT button
-        right_joystick_lr = msg.axes[3]  # Right joystick left-right
-        right_joystick_ud = msg.axes[4]  # Right joystick up-down
+        # Adjust maximum angular and linear speeds
+        self.angular_speed = 0.3 + (left_joystick_lr * 0.2)  # Ranges from 0.1 to 0.5
+        self.angular_speed = max(0.1, min(self.angular_speed, 0.5))
 
-        # Adjust angular and linear speeds if LT button is pressed
-        if lt_button == -1.0:  # LT button pressed
-            self.angular_speed = self.default_angular_speed + (left_joystick_lr * 0.1)
-            self.linear_speed = self.default_linear_speed + (left_joystick_ud * 0.3)
-        else:  # LT button not pressed, maintain default speeds
-            self.angular_speed = self.default_angular_speed
-            self.linear_speed = self.default_linear_speed
+        self.linear_speed = 0.5 + (left_joystick_ud * 0.3)  # Ranges from 0.2 to 0.8
+        self.linear_speed = max(0.3, min(self.linear_speed, 0.8))
 
         # Determine motor speeds based on right joystick input
-        if right_joystick_ud > 0.1:  # Forward
-            left_speed = self.linear_speed
-            right_speed = self.linear_speed
-        elif right_joystick_ud < -0.1:  # Backward
-            left_speed = -self.linear_speed
-            right_speed = -self.linear_speed
-        elif right_joystick_lr > 0.1:  # Turn right
-            left_speed = self.angular_speed
-            right_speed = -self.angular_speed
-        elif right_joystick_lr < -0.1:  # Turn left
-            left_speed = -self.angular_speed
-            right_speed = self.angular_speed
-        else:  # No movement
-            left_speed = 0.0
-            right_speed = 0.0
+        forward_speed = -right_joystick_ud * self.linear_speed * 0.5
+        turn_speed = right_joystick_lr * self.angular_speed 
 
-        # Debug: Print calculated speeds
-        self.get_logger().info(f"Left Speed: {left_speed}, Right Speed: {right_speed}")
+        left_speed = forward_speed - turn_speed
+        right_speed = forward_speed + turn_speed
 
-        # Set motor RPM and run motors
+        # Debugging output
+        self.get_logger().info("-----------------------------------------------------------")
+        self.get_logger().info(f"Joystick Axes: {msg.axes}")
+        self.get_logger().info(f"Adjusted Angular Speed: {self.angular_speed}")
+        self.get_logger().info(f"Adjusted Linear Speed: {self.linear_speed}")
+        self.get_logger().info(f"Left Motor Speed: {left_speed}")
+        self.get_logger().info(f"Right Motor Speed: {right_speed}")
+        self.get_logger().info("-----------------------------------------------------------")
+
+        # Set motor RPMs
         self.left_motor.set_rpm(int(left_speed * 100))
         self.right_motor.set_rpm(int(right_speed * 100))
 
+        # Run motors
         self.left_motor.run()
         self.right_motor.run()
 
     def destroy_node(self):
-        # Stop and safely close motors when the node is destroyed
+        # Safely stop and close motors on shutdown
         self.left_motor.stop()
         self.right_motor.stop()
         self.left_motor.close()
         self.right_motor.close()
         super().destroy_node()
+
 
 def main(args=None):
     rclpy.init(args=args)
@@ -133,9 +127,10 @@ def main(args=None):
         rclpy.spin(motor_control_node)
     except KeyboardInterrupt:
         pass
+    finally:
+        motor_control_node.destroy_node()
+        rclpy.shutdown()
 
-    motor_control_node.destroy_node()
-    rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
