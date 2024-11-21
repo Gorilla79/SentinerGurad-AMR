@@ -53,7 +53,7 @@ class MotorControlNode(Node):
         super().__init__('motor_control_node')
 
         # Default speed limits
-        self.default_angular_speed = 0.1
+        self.default_angular_speed = 0.3
         self.default_linear_speed = 0.5
         self.angular_speed = self.default_angular_speed
         self.linear_speed = self.default_linear_speed
@@ -74,32 +74,43 @@ class MotorControlNode(Node):
 
     def joy_callback(self, msg):
         # Extract joystick values
-        left_joystick_lr = msg.axes[1]  # Left joystick left-right for angular speed adjustment
-        left_joystick_ud = msg.axes[0]  # Left joystick up-down for linear speed adjustment
-        right_joystick_lr = msg.axes[4]  # Right joystick left-right
-        right_joystick_ud = msg.axes[3]  # Right joystick up-down
+        angular_adjust = msg.axes[0]  # Adjust angular speed (rotational control)
+        linear_adjust = msg.axes[1]  # Adjust linear speed (forward/backward movement)
+        right_joystick_lr = msg.axes[4]  # Right joystick left-right (turning)
+        right_joystick_ud = msg.axes[3]  # Right joystick up-down (movement)
 
-        # Adjust maximum angular and linear speeds
-        self.angular_speed = 0.3 + (left_joystick_lr * 0.2)  # Ranges from 0.1 to 0.5
+        # Adjust angular and linear speeds
+        if angular_adjust == 1.0:  # Increase angular speed by 10%
+            self.angular_speed *= 1.1
+        elif angular_adjust == -1.0:  # Decrease angular speed by 10%
+            self.angular_speed *= 0.9
+
+        # Clamp angular speed to limits
         self.angular_speed = max(0.1, min(self.angular_speed, 0.5))
 
-        self.linear_speed = 0.5 + (left_joystick_ud * 0.3)  # Ranges from 0.2 to 0.8
+        if linear_adjust == 1.0:  # Increase linear speed by 10%
+            self.linear_speed *= 1.1
+        elif linear_adjust == -1.0:  # Decrease linear speed by 10%
+            self.linear_speed *= 0.9
+
+        # Clamp linear speed to limits
         self.linear_speed = max(0.3, min(self.linear_speed, 0.8))
 
         # Determine motor speeds based on right joystick input
-        forward_speed = -right_joystick_ud * self.linear_speed * 0.5
-        turn_speed = right_joystick_lr * self.angular_speed 
+        forward_speed = -right_joystick_ud * self.angular_speed
+        turn_speed = right_joystick_lr * self.linear_speed
 
+        # Adjust motor speeds for turning and movement
         left_speed = forward_speed - turn_speed
         right_speed = forward_speed + turn_speed
 
         # Debugging output
         self.get_logger().info("-----------------------------------------------------------")
         self.get_logger().info(f"Joystick Axes: {msg.axes}")
-        self.get_logger().info(f"Adjusted Angular Speed: {self.angular_speed}")
-        self.get_logger().info(f"Adjusted Linear Speed: {self.linear_speed}")
-        self.get_logger().info(f"Left Motor Speed: {left_speed}")
-        self.get_logger().info(f"Right Motor Speed: {right_speed}")
+        self.get_logger().info(f"Adjusted Angular Speed: {self.angular_speed:.2f}")
+        self.get_logger().info(f"Adjusted Linear Speed: {self.linear_speed:.2f}")
+        self.get_logger().info(f"Left Motor Speed: {left_speed:.2f}")
+        self.get_logger().info(f"Right Motor Speed: {right_speed:.2f}")
         self.get_logger().info("-----------------------------------------------------------")
 
         # Set motor RPMs
@@ -133,4 +144,3 @@ def main(args=None):
 
 
 if __name__ == '__main__':
-    main()
